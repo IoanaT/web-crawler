@@ -30,36 +30,6 @@ public class WebCrawler {
         this.httpClient = httpClient;
     }
 
-    public static void main(String[] args) throws Exception {
-        try (Scanner scanner = new Scanner(System.in)) {
-            System.out.println("Please input a search string: ");
-            String searchTerm = scanner.nextLine();
-            searchTerm = searchTerm.replaceAll(" ", "+");
-            System.out.println(searchTerm);
-
-            //TODO: use Google Search API (must get API key and search engine ID)
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("https://www.google.com/search?q=" + searchTerm))
-                    .setHeader("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.105 Safari/537.36")
-                    .setHeader("accept-language", " en-US,en;q=0.9,de;q=0.8,ro;q=0.7")
-                    .GET()
-                    .build();
-            WebCrawler webCrawler = new WebCrawler();
-            HttpResponse<String> response = webCrawler.getHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
-
-            LinkedList<String> links = webCrawler.extractLinksFromPage(response.body());
-            System.out.println(links);
-
-            HttpClient httpClient2 = HttpClient.newBuilder().executor(Executors.newWorkStealingPool()).build();
-            List<String> allLibraries = webCrawler.downloadLinksAndParseJsLibraries(links, httpClient2);
-            Set<JsLibrary> uniqueLibraries = webCrawler.deduplicateJsLibraries(allLibraries);
-            webCrawler.printTopFiveMostUsedJsLibraries(allLibraries);
-
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
-    }
-
     private HttpRequest getRequest(String targetLink) throws URISyntaxException {
         return HttpRequest.newBuilder()
                 .uri(new URI(targetLink))
@@ -67,7 +37,7 @@ public class WebCrawler {
                 .build();
     }
 
-    public LinkedList<String> extractRegexPattern(String regex, String text) {
+    private LinkedList<String> extractRegexPattern(String regex, String text) {
         LinkedList<String> links = new LinkedList<>();
         Pattern pattern = Pattern.compile(regex, Pattern.DOTALL);
         Matcher matcher = pattern.matcher(text);
@@ -84,13 +54,13 @@ public class WebCrawler {
         return links;
     }
 
-    public String downloadLink(String link, HttpClient client) throws URISyntaxException, ExecutionException, InterruptedException {
+    private String downloadLink(String link, HttpClient client) throws URISyntaxException, ExecutionException, InterruptedException {
         CompletableFuture<String> future = client.sendAsync(getRequest(link), HttpResponse.BodyHandlers.ofString())
                 .thenApply(response -> response.body());
         return future.get();
     }
 
-    public List<String> downloadLinkAndParseJsLibraries(String link, HttpClient client) throws URISyntaxException, ExecutionException, InterruptedException {
+    private List<String> downloadLinkAndParseJsLibraries(String link, HttpClient client) throws URISyntaxException, ExecutionException, InterruptedException {
         CompletableFuture<List<String>> future = client.sendAsync(getRequest(link), HttpResponse.BodyHandlers.ofString())
                 .thenApply(response -> response.body())
                 .thenApply(page -> extractRegexPattern("<script.*src=([\\\"'])(?=.*js)(.*?)\\1", page).stream()
