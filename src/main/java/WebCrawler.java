@@ -49,7 +49,7 @@ public class WebCrawler {
 
     public LinkedList<String> extractLinksFromPage(String response) {
         LinkedList<String> links = extractRegexPattern("<div class=\"r\"><a\\s+href=([\"'])(.*?)\\1", response);
-        System.out.println(links);
+        System.out.println("Main links from first google result page: " + links);
         System.out.println("Found " + links.size() + " links.");
         return links;
     }
@@ -100,6 +100,7 @@ public class WebCrawler {
         return jsLibraries;
     }
 
+    //currently prints MD5 of top 5 most used libraries
     public void printTopFiveMostUsedJsLibraries(List<String> libraries) {
         Map<String, Long> frequencyMap = new HashMap<>();
 
@@ -110,8 +111,8 @@ public class WebCrawler {
                 e.printStackTrace();
             }
             return null;
-        }).collect(Collectors.groupingBy(JsLibrary::getMd5 ,() -> frequencyMap,
-                        Collectors.counting()));
+        }).collect(Collectors.groupingBy(JsLibrary::getMd5, () -> frequencyMap,
+                Collectors.counting()));
 
         Map<String, Long> sortedMap = new HashMap<>();
         frequencyMap.entrySet().stream().sorted(Map.Entry.comparingByValue()).forEachOrdered(x -> sortedMap.put(x.getKey(), x.getValue()));

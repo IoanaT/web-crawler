@@ -25,7 +25,6 @@ public class Main {
             HttpResponse<String> response = webCrawler.getHttpClient().send(googleSearchRequest, HttpResponse.BodyHandlers.ofString());
 
             LinkedList<String> links = webCrawler.extractLinksFromPage(response.body());
-            System.out.println(links);
 
             List<String> allLibraries = webCrawler.downloadLinksAndParseJsLibraries(links, webCrawler.getHttpClient());
             Set<JsLibrary> uniqueLibraries = webCrawler.deduplicateJsLibraries(allLibraries);
