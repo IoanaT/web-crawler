@@ -140,8 +140,9 @@ public class WebCrawler {
                 e.printStackTrace();
             }
             return null;
-        }).collect(Collectors.groupingBy(JsLibrary::getMd5, () -> frequencyMap,
+        }).collect(Collectors.groupingBy(JsLibrary::getMd5 ,() -> frequencyMap,
                         Collectors.counting()));
+
         Map<String, Long> sortedMap = new HashMap<>();
         frequencyMap.entrySet().stream().sorted(Map.Entry.comparingByValue()).forEachOrdered(x -> sortedMap.put(x.getKey(), x.getValue()));
         sortedMap.entrySet().stream().limit(5).forEach(x -> System.out.println(x.getKey()));
