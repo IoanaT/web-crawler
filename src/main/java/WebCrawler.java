@@ -12,6 +12,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 public class WebCrawler {
 
@@ -51,7 +52,7 @@ public class WebCrawler {
             System.out.println(links);
 
             HttpClient httpClient2 = HttpClient.newBuilder().executor(Executors.newWorkStealingPool()).build();
-            webCrawler.downloadLinks(links, httpClient2);
+            webCrawler.downloadLinksAndParseJsLibraries(links, httpClient2);
 
             //download first link
 //            String file = webCrawler.downloadLink(links.get(0), httpClient2);
@@ -69,37 +70,49 @@ public class WebCrawler {
                 .build();
     }
 
-    public LinkedList<String> extractLinksFromPage(String response) {
+    public LinkedList<String> extractRegexPattern(String regex, String text) {
         LinkedList<String> links = new LinkedList<>();
-        //TODO: improve pattern for main links ?!
-        //TODO: how performant are Pattern and Matcher for large documents ?!
-        Pattern pattern = Pattern.compile("<div class=\"r\"><a\\s+href=([\"'])(.*?)\\1", Pattern.DOTALL);
-        Matcher matcher = pattern.matcher(response);
+        Pattern pattern = Pattern.compile(regex, Pattern.DOTALL);
+        Matcher matcher = pattern.matcher(text);
         while (matcher.find()) {
-//            System.out.println(matcher.group(1));
             links.add(matcher.group(2));
         }
+        return links;
+    }
+
+    public LinkedList<String> extractLinksFromPage(String response) {
+        LinkedList<String> links = extractRegexPattern("<div class=\"r\"><a\\s+href=([\"'])(.*?)\\1", response);
         System.out.println(links);
         System.out.println("Found " + links.size() + " links.");
         return links;
     }
 
     public String downloadLink(String link, HttpClient client) throws URISyntaxException, ExecutionException, InterruptedException {
-        CompletableFuture<String> future = client.sendAsync(getRequest(link), HttpResponse.BodyHandlers.ofString()).thenApply(response -> response.body());
+        CompletableFuture<String> future = client.sendAsync(getRequest(link), HttpResponse.BodyHandlers.ofString())
+                .thenApply(response -> response.body());
         return future.get();
     }
 
-    public List<String> downloadLinks(List<String> links, HttpClient client) throws Exception {
+    public List<String> downloadLinkAndParseJsLibraries(String link, HttpClient client) throws URISyntaxException, ExecutionException, InterruptedException {
+        CompletableFuture<List<String>> future = client.sendAsync(getRequest(link), HttpResponse.BodyHandlers.ofString())
+                .thenApply(response -> response.body())
+                .thenApply(page -> extractRegexPattern("<script.*src=([\\\"'])(?=.*js)(.*?)\\1", page).stream()
+                        .filter(str -> str.contains(".js") && str.contains("http")).collect(Collectors.toList()) );
+        return future.get();
+    }
+
+    public List<String> downloadLinksAndParseJsLibraries(List<String> links, HttpClient client) throws Exception {
         Instant start = Instant.now();
 
-        ArrayList<String> downloadedPages = new ArrayList<>();
+        ArrayList<String> jsLibraries = new ArrayList<>();
         for (String link : links) {
 
-            String page = downloadLink(link, client);
-            downloadedPages.add(page);
+            List<String> libraries = downloadLinkAndParseJsLibraries(link, client);
+            jsLibraries.addAll(libraries);
         }
+        System.out.println("Found JS libraries list: " + jsLibraries);
         Instant end = Instant.now();
         System.out.println("Downloaded links in: " + Duration.between(start, end).getSeconds() + " seconds.");
-        return downloadedPages;
+        return jsLibraries;
     }
 }
